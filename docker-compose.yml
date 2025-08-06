@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  moengage-mcp:
+    build: .
+    container_name: moengage-mcp-server
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - DATABASE_PATH=/app/data/moengage-docs.db
+      - SITEMAP_URL=https://developers.moengage.com/hc/sitemap.xml
+      - UPDATE_SCHEDULE=0 0 2 * * 0  # Every Sunday at 2 AM
+      - RATE_LIMIT_REQUESTS=10
+      - MAX_CONCURRENT_UPDATES=5
+      - FORCE_UPDATE_ON_START=false
+    volumes:
+      - moengage_data:/app/data
+      - moengage_logs:/app/logs
+      # Mount custom config if needed
+      # - ./custom.env:/app/.env:ro
+    # Network mode for MCP (stdio transport doesn't need network)
+    network_mode: none
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  moengage_data:
+    driver: local
+  moengage_logs:
+    driver: local

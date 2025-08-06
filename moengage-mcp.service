@@ -1,0 +1,39 @@
+[Unit]
+Description=MoEngage MCP Server - Documentation AI Assistant
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=moengage-mcp
+Group=moengage-mcp
+WorkingDirectory=/home/moengage-mcp/moengage-mcp-server
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
+StartLimitBurst=3
+StartLimitInterval=60
+
+# Environment variables
+Environment=NODE_ENV=production
+Environment=LOG_LEVEL=info
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/moengage-mcp/moengage-mcp-server/data
+ReadWritePaths=/home/moengage-mcp/moengage-mcp-server/logs
+
+# Process limits
+LimitNOFILE=65536
+LimitNPROC=32768
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=moengage-mcp
+
+[Install]
+WantedBy=multi-user.target

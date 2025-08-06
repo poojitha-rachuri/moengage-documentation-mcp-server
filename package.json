@@ -1,0 +1,64 @@
+{
+  "name": "@moengage/documentation-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for MoEngage documentation (developers, help, partners) with automatic updates",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "./start-replit.sh",
+    "start:prod": "node dist/index.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts",
+    "update-docs": "node dist/updater.js",
+    "schedule-updates": "node dist/scheduler.js",
+    "deploy": "./deploy.sh deploy",
+    "backup": "./backup.sh backup",
+    "monitor": "./monitor.sh health",
+    "clean": "rm -rf dist node_modules",
+    "prepare": "npm run build",
+    "replit": "./start-replit.sh"
+  },
+  "keywords": [
+    "mcp",
+    "moengage",
+    "documentation",
+    "api",
+    "sdk"
+  ],
+  "author": "MoEngage",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "cheerio": "^1.0.0-rc.12",
+    "axios": "^1.6.0",
+    "xml2js": "^0.6.2",
+    "turndown": "^7.1.2",
+    "node-cron": "^3.0.3",
+    "sqlite3": "^5.1.6",
+    "winston": "^3.11.0",
+    "zod": "^3.22.4",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/xml2js": "^0.4.14",
+    "@types/turndown": "^5.0.4",
+    "@types/node-cron": "^3.0.11",
+    "typescript": "^5.0.0",
+    "tsx": "^4.0.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0",
+    "eslint": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "prettier": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
