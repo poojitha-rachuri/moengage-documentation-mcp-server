@@ -10,11 +10,43 @@ const logger = createLogger('http-server');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Basic CORS
+app.use((req: Request, res: Response, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
 // Initialize components
 const database = new Database();
 const documentProcessor = new DocumentProcessor();
 const sitemapUpdater = new SitemapUpdater(database);
 const scheduler = new UpdateScheduler();
+
+// Root endpoint for health checks
+app.get('/', (req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    service: 'moengage-mcp-server',
+    message: 'MoEngage Documentation MCP Server is running',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/health',
+      status: '/status',
+      search: '/search?q=query',
+      update: '/update'
+    }
+  });
+});
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {

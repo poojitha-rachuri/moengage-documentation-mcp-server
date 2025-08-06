@@ -75,4 +75,3 @@ npm_config_prefix = "/home/runner/$REPL_SLUG/.config/npm/node_global"
 [deployment]
 run = ["sh", "-c", "npm run start:http"]
 build = ["sh", "-c", "npm install && npm run build"]
-deploymentTarget = "none"
