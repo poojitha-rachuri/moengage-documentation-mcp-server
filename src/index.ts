@@ -1,5 +1,19 @@
 #!/usr/bin/env node
 
+// Node.js polyfills for compatibility
+if (typeof globalThis.File === 'undefined') {
+  // @ts-ignore
+  globalThis.File = class File extends Blob {
+    constructor(chunks: any, filename: string, options: any = {}) {
+      super(chunks, options);
+      // @ts-ignore
+      this.name = filename;
+      // @ts-ignore
+      this.lastModified = Date.now();
+    }
+  };
+}
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {

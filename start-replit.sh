@@ -24,11 +24,10 @@ if [ ! -f ".env" ]; then
     cp .env.example .env
 fi
 
-# Install dependencies if node_modules doesn't exist
-if [ ! -d "node_modules" ]; then
-    echo "📦 Installing dependencies..."
-    npm ci
-fi
+# Clean install dependencies for compatibility
+echo "📦 Installing/updating dependencies..."
+rm -rf node_modules package-lock.json
+npm install
 
 # Build if dist directory doesn't exist
 if [ ! -d "dist" ]; then
