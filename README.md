@@ -2,11 +2,26 @@
 
 A Model Context Protocol (MCP) server that provides access to MoEngage documentation through AI assistants like Claude, Cursor, and Claude Code.
 
-## 🚀 Quick Start
+## 🚀 Quick Installation
 
-### For Local Development (IDE Integration)
+### Option 1: Easy Install (Recommended)
 
 ```bash
+# Clone the repository
+git clone https://github.com/poojitha-rachuri/moengage-documentation-mcp-server.git
+cd moengage-documentation-mcp-server
+
+# Run the installation script
+./install.sh
+```
+
+### Option 2: Manual Install
+
+```bash
+# Clone the repository
+git clone https://github.com/poojitha-rachuri/moengage-documentation-mcp-server.git
+cd moengage-documentation-mcp-server
+
 # Install dependencies
 npm install
 
@@ -17,19 +32,13 @@ npm run build
 npm run start:mcp
 ```
 
-### For Replit Deployment (HTTP API)
-
-```bash
-# Start the HTTP server for web deployment
-npm run start:http
-```
-
 ## 📋 MCP Server Configuration
 
 ### For Claude Desktop:
 1. Install Claude Desktop
 2. Go to Settings → Model Context Protocol
-3. Add Server:
+3. Click "Add Server"
+4. Configure:
    - **Name**: MoEngage Documentation
    - **Command**: `node dist/index.js`
    - **Directory**: Path to your project folder
@@ -43,7 +52,7 @@ npm run start:http
        "moengage-docs": {
          "command": "node",
          "args": ["dist/index.js"],
-         "cwd": "/path/to/your/project"
+         "cwd": "/path/to/your/moengage-mcp-server"
        }
      }
    }
@@ -58,7 +67,7 @@ npm run start:http
        "moengage-docs": {
          "command": "node",
          "args": ["dist/index.js"],
-         "cwd": "/path/to/your/project"
+         "cwd": "/path/to/your/moengage-mcp-server"
        }
      }
    }
@@ -81,7 +90,7 @@ npm run start:http
 
 ## 📝 Important Notes
 
-**MCP servers are designed for local IDE integration, not web hosting.** The HTTP server is provided for Replit compatibility but the primary use case is running the MCP server locally with your IDE.
+**MCP servers are designed for local IDE integration, not web hosting.** The HTTP server is provided for Replit compatibility but the primary use case is running the MCP server locally.
 
 ## 🛠️ Development
 
@@ -104,3 +113,33 @@ npm run start:http
 For local MCP server usage, no deployment is needed. Just run the MCP server locally and configure your IDE to use it.
 
 For web API usage, the HTTP server can be deployed to Replit or other platforms.
+
+## 🔧 Available MCP Tools
+
+Once configured, you'll have access to:
+
+1. **`search_documentation`** - Search MoEngage docs with filters
+2. **`get_document`** - Get specific document by ID
+3. **`list_categories`** - List all documentation categories
+4. **`get_recent_updates`** - Get recently updated docs
+5. **`get_update_status`** - Check last update status
+6. **`trigger_update`** - Manually trigger update
+
+## 📚 Documentation Sources
+
+This server indexes documentation from three primary MoEngage sources:
+
+- **developers.moengage.com** - SDK documentation, API references, integration guides
+- **help.moengage.com** - User guides, tutorials, troubleshooting, FAQs
+- **partners.moengage.com** - Partner integrations, marketplace documentation
+
+## 🚀 Features
+
+- **Multi-Source Documentation**: Indexes from all MoEngage documentation sources
+- **Comprehensive Search**: Full-text search across all documentation
+- **Automatic Updates**: Weekly scheduled updates from sitemap XMLs
+- **Intelligent Processing**: Converts HTML documentation to structured markdown
+- **Source-Aware Filtering**: Filter by documentation source, platform, category
+- **Platform-Specific Search**: Filter by Android, iOS, Web, React Native, Flutter, APIs
+- **Recent Updates Tracking**: See what documentation has been recently modified
+- **Manual Update Triggers**: Force immediate updates when needed

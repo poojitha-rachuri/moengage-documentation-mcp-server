@@ -4,6 +4,14 @@
   "description": "MCP server for MoEngage documentation (developers, help, partners) with automatic updates",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "moengage-mcp-server": "./dist/index.js"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "MCP_SETUP.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
@@ -23,17 +31,30 @@
     "monitor": "./monitor.sh health",
     "clean": "rm -rf dist node_modules",
     "prepare": "npm run build",
-    "replit": "./start-replit.sh"
+    "replit": "./start-replit.sh",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "mcp",
     "moengage",
     "documentation",
     "api",
-    "sdk"
+    "sdk",
+    "claude",
+    "cursor",
+    "ai",
+    "assistant"
   ],
   "author": "MoEngage",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/poojitha-rachuri/moengage-documentation-mcp-server.git"
+  },
+  "homepage": "https://github.com/poojitha-rachuri/moengage-documentation-mcp-server#readme",
+  "bugs": {
+    "url": "https://github.com/poojitha-rachuri/moengage-documentation-mcp-server/issues"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "cheerio": "^1.0.0-rc.12",
@@ -64,5 +85,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
