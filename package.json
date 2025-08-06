@@ -9,29 +9,19 @@
   },
   "files": [
     "dist/**/*",
-    "README.md",
-    "MCP_SETUP.md"
+    "README.md"
   ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
-    "start:prod": "node dist/index.js",
-    "start:http": "node dist/http-server.js",
-    "start:mcp": "./start-mcp.sh",
-    "deploy": "./deploy.sh",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts",
-    "update-docs": "node dist/updater.js",
-    "schedule-updates": "node dist/scheduler.js",
-    "backup": "./backup.sh backup",
-    "monitor": "./monitor.sh health",
     "clean": "rm -rf dist node_modules",
     "prepare": "npm run build",
-    "replit": "./start-replit.sh",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -67,15 +57,13 @@
     "sqlite3": "^5.1.6",
     "winston": "^3.11.0",
     "zod": "^3.22.4",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2"
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/xml2js": "^0.4.14",
     "@types/turndown": "^5.0.4",
     "@types/node-cron": "^3.0.11",
-    "@types/express": "^4.17.21",
     "typescript": "^5.0.0",
     "tsx": "^4.0.0",
     "jest": "^29.0.0",

@@ -4,7 +4,7 @@ A Model Context Protocol (MCP) server that provides access to MoEngage documenta
 
 ## 🚀 Quick Installation
 
-### Option 1: NPX Installation (Recommended)
+### NPX Installation (Recommended)
 
 ```bash
 # Install and run directly with npx
@@ -15,17 +15,6 @@ npx @moengage/documentation-mcp-server --tools=search_documentation,get_document
 
 # List all available tools
 npx @moengage/documentation-mcp-server --list-tools
-```
-
-### Option 2: Clone and Install
-
-```bash
-# Clone the repository
-git clone https://github.com/poojitha-rachuri/moengage-documentation-mcp-server.git
-cd moengage-documentation-mcp-server
-
-# Run the installation script
-./install.sh
 ```
 
 ## 📋 MCP Server Configuration
@@ -130,6 +119,16 @@ This server automatically indexes documentation from three primary MoEngage sour
 - **help.moengage.com** - User guides, tutorials, troubleshooting, FAQs
 - **partners.moengage.com** - Partner integrations, marketplace documentation
 
+## 🔄 Automatic Updates
+
+The MCP server automatically:
+
+1. **Fetches sitemaps** from all MoEngage documentation sources
+2. **Crawls all articles** and extracts content
+3. **Processes and indexes** documentation in SQLite database
+4. **Runs weekly updates** (every Sunday at 2 AM) to keep documentation current
+5. **Tracks changes** and provides update status
+
 ## 🚀 Features
 
 - **Multi-Source Documentation**: Indexes from all MoEngage documentation sources
@@ -141,50 +140,6 @@ This server automatically indexes documentation from three primary MoEngage sour
 - **Recent Updates Tracking**: See what documentation has been recently modified
 - **Manual Update Triggers**: Force immediate updates when needed
 - **Easy Installation**: One-command installation via npx
-
-## 🔄 Automatic Updates
-
-The MCP server automatically:
-
-1. **Fetches sitemaps** from all MoEngage documentation sources
-2. **Crawls all articles** and extracts content
-3. **Processes and indexes** documentation in SQLite database
-4. **Runs weekly updates** to keep documentation current
-5. **Tracks changes** and provides update status
-
-## 🛠️ Development
-
-```bash
-# Clone and setup
-git clone https://github.com/poojitha-rachuri/moengage-documentation-mcp-server.git
-cd moengage-documentation-mcp-server
-
-# Install dependencies
-npm install
-
-# Build project
-npm run build
-
-# Start MCP server for development
-npm start
-
-# Start HTTP server for testing
-npm run start:http
-```
-
-## 📦 Deployment
-
-### For Local MCP Usage:
-No deployment needed! Just run with npx:
-```bash
-npx @moengage/documentation-mcp-server
-```
-
-### For Web API Usage:
-The HTTP server can be deployed to Replit or other platforms:
-```bash
-npm run start:http
-```
 
 ## 🔧 Troubleshooting
 
@@ -204,10 +159,6 @@ npm run start:http
    - Check that the MCP server is running
    - Verify configuration syntax
 
-## 📝 Important Notes
-
-**MCP servers are designed for local IDE integration, not web hosting.** The HTTP server is provided for Replit compatibility but the primary use case is running the MCP server locally with your IDE.
-
 ## 🎯 Usage Examples
 
 Once configured, you can ask your AI assistant:
@@ -217,3 +168,7 @@ Once configured, you can ask your AI assistant:
 - "Show me recent updates to the Web SDK"
 - "List all API documentation categories"
 - "Check when the documentation was last updated"
+
+## 📝 Important Notes
+
+**No deployment needed!** This MCP server runs locally and automatically updates documentation every Sunday. Users simply install via npx and configure their IDE to use it.
