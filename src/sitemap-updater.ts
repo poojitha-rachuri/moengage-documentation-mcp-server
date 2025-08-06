@@ -72,6 +72,8 @@ export class SitemapUpdater {
 
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
+        if (!batch) continue;
+        
         logger.debug(`Processing batch ${i + 1}/${batches.length}`, { batchSize: batch.length });
 
         const promises = batch.map(entry => this.processEntry(entry, lastUpdateTime));
@@ -247,7 +249,7 @@ export class SitemapUpdater {
       const newDocument = await this.documentProcessor.processDocument(url, lastModified, entry.source as any);
       
       if (!newDocument) {
-        return { error: `Failed to process document: ${url}` };
+        return { action: 'skipped', error: `Failed to process document: ${url}` };
       }
 
       // Check if content has actually changed
@@ -269,7 +271,7 @@ export class SitemapUpdater {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error('Failed to process entry', { url: entry.loc, error: errorMessage });
-      return { error: `Failed to process ${entry.loc}: ${errorMessage}` };
+      return { action: 'skipped', error: `Failed to process ${entry.loc}: ${errorMessage}` };
     }
   }
 

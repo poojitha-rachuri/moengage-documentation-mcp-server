@@ -61,25 +61,97 @@ export const SitemapSchema = z.object({
 export type Sitemap = z.infer<typeof SitemapSchema>;
 
 // MCP Tool schemas
-export const SearchToolInputSchema = z.object({
-  query: z.string().describe('Search query for MoEngage documentation'),
-  category: z.string().optional().describe('Filter by category (e.g., "Android SDK", "iOS SDK", "Web SDK", "API")'),
-  platform: z.enum(['android', 'ios', 'web', 'react-native', 'flutter', 'api', 'general']).optional().describe('Filter by platform'),
-  source: z.enum(['developers', 'help', 'partners']).optional().describe('Filter by documentation source'),
-  limit: z.number().min(1).max(50).default(10).describe('Maximum number of results to return'),
+export const SearchToolInputSchema = {
+  type: 'object' as const,
+  properties: {
+    query: {
+      type: 'string',
+      description: 'Search query for MoEngage documentation'
+    },
+    category: {
+      type: 'string',
+      description: 'Filter by category (e.g., "Android SDK", "iOS SDK", "Web SDK", "API")'
+    },
+    platform: {
+      type: 'string',
+      enum: ['android', 'ios', 'web', 'react-native', 'flutter', 'api', 'general'],
+      description: 'Filter by platform'
+    },
+    source: {
+      type: 'string',
+      enum: ['developers', 'help', 'partners'],
+      description: 'Filter by documentation source'
+    },
+    limit: {
+      type: 'number',
+      minimum: 1,
+      maximum: 50,
+      default: 10,
+      description: 'Maximum number of results to return'
+    }
+  },
+  required: ['query']
+};
+
+export const GetDocumentToolInputSchema = {
+  type: 'object' as const,
+  properties: {
+    id: {
+      type: 'string',
+      description: 'Document ID to retrieve'
+    }
+  },
+  required: ['id']
+};
+
+export const ListCategoriesToolInputSchema = {
+  type: 'object' as const,
+  properties: {
+    platform: {
+      type: 'string',
+      enum: ['android', 'ios', 'web', 'react-native', 'flutter', 'api', 'general'],
+      description: 'Filter categories by platform'
+    }
+  }
+};
+
+export const GetUpdatesToolInputSchema = {
+  type: 'object' as const,
+  properties: {
+    since: {
+      type: 'string',
+      description: 'ISO date string to get updates since this date'
+    },
+    limit: {
+      type: 'number',
+      minimum: 1,
+      maximum: 100,
+      default: 20,
+      description: 'Maximum number of updates to return'
+    }
+  }
+};
+
+// Zod schemas for validation
+export const SearchToolInputZodSchema = z.object({
+  query: z.string(),
+  category: z.string().optional(),
+  platform: z.enum(['android', 'ios', 'web', 'react-native', 'flutter', 'api', 'general']).optional(),
+  source: z.enum(['developers', 'help', 'partners']).optional(),
+  limit: z.number().min(1).max(50).default(10),
 });
 
-export const GetDocumentToolInputSchema = z.object({
-  id: z.string().describe('Document ID to retrieve'),
+export const GetDocumentToolInputZodSchema = z.object({
+  id: z.string(),
 });
 
-export const ListCategoriesToolInputSchema = z.object({
-  platform: z.enum(['android', 'ios', 'web', 'react-native', 'flutter', 'api', 'general']).optional().describe('Filter categories by platform'),
+export const ListCategoriesToolInputZodSchema = z.object({
+  platform: z.enum(['android', 'ios', 'web', 'react-native', 'flutter', 'api', 'general']).optional(),
 });
 
-export const GetUpdatesToolInputSchema = z.object({
-  since: z.string().optional().describe('ISO date string to get updates since this date'),
-  limit: z.number().min(1).max(100).default(20).describe('Maximum number of updates to return'),
+export const GetUpdatesToolInputZodSchema = z.object({
+  since: z.string().optional(),
+  limit: z.number().min(1).max(100).default(20),
 });
 
 // Search result schema

@@ -31,6 +31,10 @@ import {
   GetDocumentToolInputSchema,
   ListCategoriesToolInputSchema,
   GetUpdatesToolInputSchema,
+  SearchToolInputZodSchema,
+  GetDocumentToolInputZodSchema,
+  ListCategoriesToolInputZodSchema,
+  GetUpdatesToolInputZodSchema,
 } from './types.js';
 
 const mcpLogger = createLogger('mcp-server');
@@ -151,7 +155,7 @@ class MoEngageMCPServer {
   }
 
   private async handleSearchDocumentation(args: any) {
-    const { query, category, platform, source, limit = 10 } = SearchToolInputSchema.parse(args);
+    const { query, category, platform, source, limit = 10 } = SearchToolInputZodSchema.parse(args);
 
     mcpLogger.debug('Searching documentation', { query, category, platform, source, limit });
 
@@ -204,7 +208,7 @@ class MoEngageMCPServer {
   }
 
   private async handleGetDocument(args: any) {
-    const { id } = GetDocumentToolInputSchema.parse(args);
+    const { id } = GetDocumentToolInputZodSchema.parse(args);
 
     mcpLogger.debug('Getting document', { id });
 
@@ -250,7 +254,7 @@ class MoEngageMCPServer {
   }
 
   private async handleListCategories(args: any) {
-    const { platform } = ListCategoriesToolInputSchema.parse(args);
+    const { platform } = ListCategoriesToolInputZodSchema.parse(args);
 
     mcpLogger.debug('Listing categories', { platform });
 
@@ -294,7 +298,7 @@ class MoEngageMCPServer {
   }
 
   private async handleGetRecentUpdates(args: any) {
-    const { since, limit = 20 } = GetUpdatesToolInputSchema.parse(args);
+    const { since, limit = 20 } = GetUpdatesToolInputZodSchema.parse(args);
 
     mcpLogger.debug('Getting recent updates', { since, limit });
 

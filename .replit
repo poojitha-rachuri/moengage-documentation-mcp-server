@@ -6,7 +6,7 @@ run = "npm start"
 requiredFiles = [".replit", "replit.nix"]
 
 [nix]
-channel = "stable-22_11"
+channel = "stable-23_11"
 
 [unitTest]
 language = "nodejs"

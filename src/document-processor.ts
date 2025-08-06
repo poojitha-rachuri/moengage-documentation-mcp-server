@@ -348,7 +348,7 @@ export class DocumentProcessor {
   private extractLanguage(codeElement: Element): string {
     const className = codeElement.className;
     const classMatch = className.match(/language-(\w+)/);
-    if (classMatch) {
+    if (classMatch && classMatch[1]) {
       return classMatch[1];
     }
 

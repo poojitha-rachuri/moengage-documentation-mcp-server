@@ -8,9 +8,17 @@ import type { Document, SearchResult, UpdateStatus, Category } from './types.js'
 
 const logger = createLogger('database');
 
+// Type definitions for promisified sqlite3 methods
+type PromisifiedRun = (sql: string, params?: any) => Promise<sqlite3.RunResult>;
+type PromisifiedGet = <T = any>(sql: string, params?: any) => Promise<T | undefined>;
+type PromisifiedAll = <T = any>(sql: string, params?: any) => Promise<T[]>;
+
 export class Database {
   private db: sqlite3.Database;
   private initialized: boolean = false;
+  private run: PromisifiedRun;
+  private get: PromisifiedGet;
+  private all: PromisifiedAll;
 
   constructor() {
     // Ensure database directory exists
@@ -28,9 +36,9 @@ export class Database {
     });
 
     // Promisify database methods
-    this.db.run = promisify(this.db.run.bind(this.db));
-    this.db.get = promisify(this.db.get.bind(this.db));
-    this.db.all = promisify(this.db.all.bind(this.db));
+    this.run = promisify(this.db.run.bind(this.db)) as PromisifiedRun;
+    this.get = promisify(this.db.get.bind(this.db)) as PromisifiedGet;
+    this.all = promisify(this.db.all.bind(this.db)) as PromisifiedAll;
   }
 
   async initialize(): Promise<void> {
@@ -38,7 +46,7 @@ export class Database {
 
     try {
       // Create documents table
-      await this.db.run(`
+      await this.run(`
         CREATE TABLE IF NOT EXISTS documents (
           id TEXT PRIMARY KEY,
           url TEXT NOT NULL UNIQUE,
@@ -58,14 +66,14 @@ export class Database {
 
       // Add source column if it doesn't exist (for existing databases)
       try {
-        await this.db.run('ALTER TABLE documents ADD COLUMN source TEXT NOT NULL DEFAULT "developers"');
+        await this.run('ALTER TABLE documents ADD COLUMN source TEXT NOT NULL DEFAULT "developers"');
         logger.info('Added source column to existing database');
       } catch (error) {
         // Column might already exist, ignore error
       }
 
       // Create full-text search table
-      await this.db.run(`
+      await this.run(`
         CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
           id UNINDEXED,
           title,
@@ -79,15 +87,15 @@ export class Database {
       `);
 
       // Create indexes
-      await this.db.run('CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category)');
-      await this.db.run('CREATE INDEX IF NOT EXISTS idx_documents_platform ON documents(platform)');
-      await this.db.run('CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type)');
-      await this.db.run('CREATE INDEX IF NOT EXISTS idx_documents_source ON documents(source)');
-      await this.db.run('CREATE INDEX IF NOT EXISTS idx_documents_lastModified ON documents(lastModified)');
-      await this.db.run('CREATE INDEX IF NOT EXISTS idx_documents_checksum ON documents(checksum)');
+      await this.run('CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category)');
+      await this.run('CREATE INDEX IF NOT EXISTS idx_documents_platform ON documents(platform)');
+      await this.run('CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type)');
+      await this.run('CREATE INDEX IF NOT EXISTS idx_documents_source ON documents(source)');
+      await this.run('CREATE INDEX IF NOT EXISTS idx_documents_lastModified ON documents(lastModified)');
+      await this.run('CREATE INDEX IF NOT EXISTS idx_documents_checksum ON documents(checksum)');
 
       // Create update status table
-      await this.db.run(`
+      await this.run(`
         CREATE TABLE IF NOT EXISTS update_status (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           lastUpdate DATETIME NOT NULL,
@@ -102,14 +110,14 @@ export class Database {
       `);
 
       // Create triggers to update FTS index
-      await this.db.run(`
+      await this.run(`
         CREATE TRIGGER IF NOT EXISTS documents_fts_insert AFTER INSERT ON documents BEGIN
           INSERT INTO documents_fts(id, title, content, category, tags, source) 
           VALUES (NEW.id, NEW.title, NEW.content, NEW.category, NEW.tags, NEW.source);
         END
       `);
 
-      await this.db.run(`
+      await this.run(`
         CREATE TRIGGER IF NOT EXISTS documents_fts_update AFTER UPDATE ON documents BEGIN
           UPDATE documents_fts SET 
             title = NEW.title,
@@ -121,7 +129,7 @@ export class Database {
         END
       `);
 
-      await this.db.run(`
+      await this.run(`
         CREATE TRIGGER IF NOT EXISTS documents_fts_delete AFTER DELETE ON documents BEGIN
           DELETE FROM documents_fts WHERE id = OLD.id;
         END
@@ -140,7 +148,7 @@ export class Database {
     const tags = JSON.stringify(document.tags);
 
     try {
-      await this.db.run(`
+      await this.run(`
         INSERT OR REPLACE INTO documents 
         (id, url, title, content, lastModified, category, tags, type, platform, source, checksum, createdAt, updatedAt)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT createdAt FROM documents WHERE id = ?), ?), ?)
@@ -174,7 +182,7 @@ export class Database {
 
   async getDocument(id: string): Promise<Document | null> {
     try {
-      const row = await this.db.get('SELECT * FROM documents WHERE id = ?', [id]) as any;
+      const row = await this.get('SELECT * FROM documents WHERE id = ?', [id]) as any;
       
       if (!row) return null;
 
@@ -254,7 +262,7 @@ export class Database {
       sql += ' ORDER BY relevanceScore ASC LIMIT ?';
       params.push(limit);
 
-      const rows = await this.db.all(sql, params) as any[];
+      const rows = await this.all(sql, params) as any[];
 
       return rows.map(row => ({
         id: row.id,
@@ -294,7 +302,7 @@ export class Database {
 
       sql += ' GROUP BY category, platform ORDER BY category';
 
-      const rows = await this.db.all(sql, params) as any[];
+      const rows = await this.all(sql, params) as any[];
 
       return rows.map(row => ({
         name: row.name,
@@ -321,7 +329,7 @@ export class Database {
       sql += ' ORDER BY updatedAt DESC LIMIT ?';
       params.push(limit);
 
-      const rows = await this.db.all(sql, params) as any[];
+      const rows = await this.all(sql, params) as any[];
 
       return rows.map(row => ({
         id: row.id,
@@ -348,7 +356,7 @@ export class Database {
     try {
       const errors = JSON.stringify(status.errors);
       
-      await this.db.run(`
+      await this.run(`
         INSERT INTO update_status 
         (lastUpdate, totalDocuments, newDocuments, updatedDocuments, deletedDocuments, errors, duration)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -371,7 +379,7 @@ export class Database {
 
   async getLastUpdateStatus(): Promise<UpdateStatus | null> {
     try {
-      const row = await this.db.get(
+      const row = await this.get(
         'SELECT * FROM update_status ORDER BY lastUpdate DESC LIMIT 1'
       ) as any;
 
@@ -394,7 +402,7 @@ export class Database {
 
   async deleteDocument(id: string): Promise<void> {
     try {
-      await this.db.run('DELETE FROM documents WHERE id = ?', [id]);
+      await this.run('DELETE FROM documents WHERE id = ?', [id]);
       logger.debug('Document deleted', { id });
     } catch (error) {
       logger.error('Failed to delete document', { id, error });
@@ -404,7 +412,7 @@ export class Database {
 
   async getTotalDocumentCount(): Promise<number> {
     try {
-      const row = await this.db.get('SELECT COUNT(*) as count FROM documents') as any;
+      const row = await this.get('SELECT COUNT(*) as count FROM documents') as any;
       return row.count || 0;
     } catch (error) {
       logger.error('Failed to get total document count', { error });
@@ -414,7 +422,7 @@ export class Database {
 
   async getDocumentByChecksum(checksum: string): Promise<Document | null> {
     try {
-      const row = await this.db.get('SELECT * FROM documents WHERE checksum = ?', [checksum]) as any;
+      const row = await this.get('SELECT * FROM documents WHERE checksum = ?', [checksum]) as any;
       
       if (!row) return null;
 
