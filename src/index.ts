@@ -1,487 +1,351 @@
 #!/usr/bin/env node
 
-// Node.js polyfills for compatibility
-if (typeof globalThis.File === 'undefined') {
-  // @ts-ignore
-  globalThis.File = class File extends Blob {
-    constructor(chunks: any, filename: string, options: any = {}) {
-      super(chunks, options);
-      // @ts-ignore
-      this.name = filename;
-      // @ts-ignore
-      this.lastModified = Date.now();
-    }
-  };
-}
-
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-  Tool,
 } from '@modelcontextprotocol/sdk/types.js';
-
-import { config } from './config.js';
-import { createLogger, logger } from './logger.js';
+import { createLogger } from './logger.js';
 import { Database } from './database.js';
-import { initializeScheduler } from './scheduler.js';
+import { SitemapUpdater } from './sitemap-updater.js';
+import { DocumentProcessor } from './document-processor.js';
+import { UpdateScheduler } from './scheduler.js';
+import { config } from './config.js';
 import {
-  SearchToolInputSchema,
-  GetDocumentToolInputSchema,
-  ListCategoriesToolInputSchema,
-  GetUpdatesToolInputSchema,
-  SearchToolInputZodSchema,
-  GetDocumentToolInputZodSchema,
-  ListCategoriesToolInputZodSchema,
-  GetUpdatesToolInputZodSchema,
+  SearchToolInputSchema, GetDocumentToolInputSchema, ListCategoriesToolInputSchema, GetUpdatesToolInputSchema,
+  SearchToolInputZodSchema, GetDocumentToolInputZodSchema, ListCategoriesToolInputZodSchema, GetUpdatesToolInputZodSchema,
 } from './types.js';
 
-const mcpLogger = createLogger('mcp-server');
+const logger = createLogger('mcp-server');
 
-class MoEngageMCPServer {
-  private server: Server;
-  private database: Database;
+// Parse command line arguments
+const args = process.argv.slice(2);
+const availableTools = [
+  'search_documentation',
+  'get_document', 
+  'list_categories',
+  'get_recent_updates',
+  'get_update_status',
+  'trigger_update'
+];
 
-  constructor() {
-    this.server = new Server(
-      {
-        name: 'moengage-documentation',
-        version: '1.0.0',
-      },
-      {
-        capabilities: {
-          tools: {},
-        },
-      }
-    );
+let enabledTools = availableTools;
 
-    this.database = new Database();
-    this.setupHandlers();
-  }
-
-  private setupHandlers(): void {
-    // List available tools
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      const tools: Tool[] = [
-        {
-          name: 'search_documentation',
-          description: 'Search MoEngage documentation (developers, help, partners) with filters and ranking',
-          inputSchema: SearchToolInputSchema,
-        },
-        {
-          name: 'get_document',
-          description: 'Retrieve a specific document by ID with full content',
-          inputSchema: GetDocumentToolInputSchema,
-        },
-        {
-          name: 'list_categories',
-          description: 'List all documentation categories with document counts',
-          inputSchema: ListCategoriesToolInputSchema,
-        },
-        {
-          name: 'get_recent_updates',
-          description: 'Get recently updated or added documentation',
-          inputSchema: GetUpdatesToolInputSchema,
-        },
-        {
-          name: 'get_update_status',
-          description: 'Get the status of the last documentation update',
-          inputSchema: {
-            type: 'object',
-            properties: {},
-          },
-        },
-        {
-          name: 'trigger_update',
-          description: 'Manually trigger a documentation update (admin only)',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              force: {
-                type: 'boolean',
-                description: 'Force update even if documents haven\'t changed',
-                default: false,
-              },
-            },
-          },
-        },
-      ];
-
-      return { tools };
-    });
-
-    // Handle tool calls
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const { name, arguments: args } = request.params;
-
-      try {
-        switch (name) {
-          case 'search_documentation':
-            return await this.handleSearchDocumentation(args);
-
-          case 'get_document':
-            return await this.handleGetDocument(args);
-
-          case 'list_categories':
-            return await this.handleListCategories(args);
-
-          case 'get_recent_updates':
-            return await this.handleGetRecentUpdates(args);
-
-          case 'get_update_status':
-            return await this.handleGetUpdateStatus();
-
-          case 'trigger_update':
-            return await this.handleTriggerUpdate(args);
-
-          default:
-            throw new Error(`Unknown tool: ${name}`);
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        mcpLogger.error(`Tool execution failed: ${name}`, { error: errorMessage, args });
-        
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Error executing ${name}: ${errorMessage}`,
-            },
-          ],
-        };
-      }
-    });
-  }
-
-  private async handleSearchDocumentation(args: any) {
-    const { query, category, platform, source, limit = 10 } = SearchToolInputZodSchema.parse(args);
-
-    mcpLogger.debug('Searching documentation', { query, category, platform, source, limit });
-
-    const results = await this.database.searchDocuments(query, {
-      category,
-      platform,
-      source,
-      limit,
-    });
-
-    if (results.length === 0) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `No documentation found matching query: "${query}"`,
-          },
-        ],
-      };
-    }
-
-    const searchSummary = `Found ${results.length} document(s) matching "${query}"`;
-    const resultsList = results.map((result, index) => {
-      return [
-        `## ${index + 1}. ${result.title}`,
-        `**Source:** ${result.source.charAt(0).toUpperCase() + result.source.slice(1)}`,
-        `**Category:** ${result.category}`,
-        `**Platform:** ${result.platform}`,
-        `**Type:** ${result.type}`,
-        `**URL:** ${result.url}`,
-        `**Last Modified:** ${result.lastModified.toISOString()}`,
-        `**Relevance Score:** ${result.relevanceScore.toFixed(2)}`,
-        '',
-        `**Preview:**`,
-        result.snippet,
-        '',
-        '---',
-        '',
-      ].join('\n');
-    }).join('\n');
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `${searchSummary}\n\n${resultsList}`,
-        },
-      ],
-    };
-  }
-
-  private async handleGetDocument(args: any) {
-    const { id } = GetDocumentToolInputZodSchema.parse(args);
-
-    mcpLogger.debug('Getting document', { id });
-
-    const document = await this.database.getDocument(id);
-
-    if (!document) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Document not found: ${id}`,
-          },
-        ],
-      };
-    }
-
-    const documentInfo = [
-      `# ${document.title}`,
-      '',
-      `**URL:** ${document.url}`,
-      `**Source:** ${document.source.charAt(0).toUpperCase() + document.source.slice(1)}`,
-      `**Category:** ${document.category}`,
-      `**Platform:** ${document.platform}`,
-      `**Type:** ${document.type}`,
-      `**Tags:** ${document.tags.join(', ')}`,
-      `**Last Modified:** ${document.lastModified.toISOString()}`,
-      `**Created:** ${document.createdAt.toISOString()}`,
-      `**Updated:** ${document.updatedAt.toISOString()}`,
-      '',
-      '---',
-      '',
-      document.content,
-    ].join('\n');
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: documentInfo,
-        },
-      ],
-    };
-  }
-
-  private async handleListCategories(args: any) {
-    const { platform } = ListCategoriesToolInputZodSchema.parse(args);
-
-    mcpLogger.debug('Listing categories', { platform });
-
-    const categories = await this.database.getCategories(platform);
-
-    if (categories.length === 0) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: platform 
-              ? `No categories found for platform: ${platform}` 
-              : 'No categories found',
-          },
-        ],
-      };
-    }
-
-    const categoryList = categories.map((category, index) => {
-      return [
-        `## ${index + 1}. ${category.name}`,
-        `**Platform:** ${category.platform}`,
-        `**Document Count:** ${category.documentCount}`,
-        `**Last Updated:** ${category.lastUpdated.toISOString()}`,
-        '',
-      ].join('\n');
-    }).join('\n');
-
-    const summary = platform
-      ? `Categories for platform "${platform}" (${categories.length} total):`
-      : `All documentation categories (${categories.length} total):`;
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `${summary}\n\n${categoryList}`,
-        },
-      ],
-    };
-  }
-
-  private async handleGetRecentUpdates(args: any) {
-    const { since, limit = 20 } = GetUpdatesToolInputZodSchema.parse(args);
-
-    mcpLogger.debug('Getting recent updates', { since, limit });
-
-    const sinceDate = since ? new Date(since) : undefined;
-    const updates = await this.database.getRecentUpdates(sinceDate, limit);
-
-    if (updates.length === 0) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: since 
-              ? `No updates found since ${since}` 
-              : 'No recent updates found',
-          },
-        ],
-      };
-    }
-
-    const updatesList = updates.map((doc, index) => {
-      return [
-        `## ${index + 1}. ${doc.title}`,
-        `**Category:** ${doc.category}`,
-        `**Platform:** ${doc.platform}`,
-        `**URL:** ${doc.url}`,
-        `**Last Modified:** ${doc.lastModified.toISOString()}`,
-        `**Updated:** ${doc.updatedAt.toISOString()}`,
-        '',
-      ].join('\n');
-    }).join('\n');
-
-    const summary = since
-      ? `Updates since ${since} (${updates.length} documents):`
-      : `Recent updates (${updates.length} documents):`;
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `${summary}\n\n${updatesList}`,
-        },
-      ],
-    };
-  }
-
-  private async handleGetUpdateStatus() {
-    mcpLogger.debug('Getting update status');
-
-    const updateScheduler = await import('./scheduler.js').then(m => m.updateScheduler);
-    
-    if (!updateScheduler) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: 'Update scheduler not initialized',
-          },
-        ],
-      };
-    }
-
-    const status = await updateScheduler.getLastUpdateStatus();
-    const nextRun = await updateScheduler.getNextScheduledRun();
-    const isRunning = updateScheduler.isUpdateRunning();
-
-    if (!status) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: 'No update status available. Run an update first.',
-          },
-        ],
-      };
-    }
-
-    const statusInfo = [
-      '# Documentation Update Status',
-      '',
-      `**Last Update:** ${status.lastUpdate.toISOString()}`,
-      `**Currently Running:** ${isRunning ? 'Yes' : 'No'}`,
-      `**Next Scheduled Run:** ${nextRun ? nextRun.toISOString() : 'Unknown'}`,
-      '',
-      '## Statistics',
-      `**Total Documents:** ${status.totalDocuments}`,
-      `**New Documents:** ${status.newDocuments}`,
-      `**Updated Documents:** ${status.updatedDocuments}`,
-      `**Deleted Documents:** ${status.deletedDocuments}`,
-      `**Duration:** ${status.duration}ms`,
-      '',
-      '## Errors',
-      status.errors.length > 0 
-        ? `**Error Count:** ${status.errors.length}\n\n${status.errors.slice(0, 5).map(err => `- ${err}`).join('\n')}`
-        : '**No errors**',
-    ].join('\n');
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: statusInfo,
-        },
-      ],
-    };
-  }
-
-  private async handleTriggerUpdate(args: any) {
-    const { force = false } = args;
-
-    mcpLogger.info('Manual update triggered', { force });
-
-    const updateScheduler = await import('./scheduler.js').then(m => m.updateScheduler);
-    
-    if (!updateScheduler) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: 'Update scheduler not initialized',
-          },
-        ],
-      };
-    }
-
-    if (updateScheduler.isUpdateRunning()) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: 'Update is already in progress. Please wait for it to complete.',
-          },
-        ],
-      };
-    }
-
-    // Start the update in the background
-    updateScheduler.performUpdate(force).catch(error => {
-      mcpLogger.error('Manual update failed', { error });
-    });
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Documentation update started ${force ? '(forced)' : ''}. Use get_update_status to check progress.`,
-        },
-      ],
-    };
-  }
-
-  async start(): Promise<void> {
-    mcpLogger.info('Starting MoEngage MCP Server');
-
-    try {
-      // Initialize database
-      await this.database.initialize();
-      mcpLogger.info('Database initialized');
-
-      // Initialize and start scheduler
-      await initializeScheduler();
-      mcpLogger.info('Update scheduler initialized');
-
-      // Start MCP server
-      const transport = new StdioServerTransport();
-      await this.server.connect(transport);
-      
-      mcpLogger.info('MoEngage Documentation MCP Server started successfully', {
-        databasePath: config.databasePath,
-        updateSchedule: config.updateSchedule,
-        sources: config.sitemapUrls.length,
-        sitemapUrls: config.sitemapUrls,
-      });
-
-    } catch (error) {
-      mcpLogger.error('Failed to start MCP server', { error });
-      process.exit(1);
-    }
+// Check for --tools argument
+const toolsIndex = args.indexOf('--tools');
+if (toolsIndex !== -1 && toolsIndex + 1 < args.length) {
+  const toolsArg = args[toolsIndex + 1];
+  if (toolsArg) {
+    enabledTools = toolsArg.split(',').filter(tool => availableTools.includes(tool));
   }
 }
 
-// Start the server
-const server = new MoEngageMCPServer();
-server.start().catch((error) => {
-  logger.error('Server startup failed', { error });
-  process.exit(1);
+// Check for --list-tools argument
+if (args.includes('--list-tools')) {
+  console.log('Available tools:');
+  availableTools.forEach(tool => console.log(`  - ${tool}`));
+  process.exit(0);
+}
+
+// Check for --help argument
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(`
+MoEngage Documentation MCP Server
+
+Usage:
+  npx @moengage/documentation-mcp-server [options]
+
+Options:
+  --tools <tool1,tool2,...>  Enable specific tools (comma-separated)
+  --list-tools               List all available tools
+  --help, -h                 Show this help message
+
+Examples:
+  npx @moengage/documentation-mcp-server
+  npx @moengage/documentation-mcp-server --tools=search_documentation,get_document
+  npx @moengage/documentation-mcp-server --list-tools
+
+Available tools:
+  - search_documentation     Search MoEngage documentation
+  - get_document            Get specific document by ID
+  - list_categories         List all documentation categories
+  - get_recent_updates      Get recently updated documents
+  - get_update_status       Check last update status
+  - trigger_update          Manually trigger update
+`);
+  process.exit(0);
+}
+
+logger.info('Starting MoEngage MCP Server', {
+  enabledTools,
+  totalTools: enabledTools.length,
+  service: 'moengage-mcp-server'
 });
+
+const server = new Server(
+  {
+    name: 'moengage-documentation-mcp-server',
+    version: '1.0.0',
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  }
+);
+
+// Initialize components
+const database = new Database();
+const documentProcessor = new DocumentProcessor();
+const sitemapUpdater = new SitemapUpdater(database);
+const scheduler = new UpdateScheduler();
+
+// Setup handlers
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  const tools = [];
+
+  if (enabledTools.includes('search_documentation')) {
+    tools.push({
+      name: 'search_documentation',
+      description: 'Search MoEngage documentation (developers, help, partners) with filters and ranking',
+      inputSchema: SearchToolInputSchema,
+    });
+  }
+
+  if (enabledTools.includes('get_document')) {
+    tools.push({
+      name: 'get_document',
+      description: 'Get a specific document by its ID',
+      inputSchema: GetDocumentToolInputSchema,
+    });
+  }
+
+  if (enabledTools.includes('list_categories')) {
+    tools.push({
+      name: 'list_categories',
+      description: 'List all available documentation categories and platforms',
+      inputSchema: ListCategoriesToolInputSchema,
+    });
+  }
+
+  if (enabledTools.includes('get_recent_updates')) {
+    tools.push({
+      name: 'get_recent_updates',
+      description: 'Get recently updated documentation',
+      inputSchema: GetUpdatesToolInputSchema,
+    });
+  }
+
+  if (enabledTools.includes('get_update_status')) {
+    tools.push({
+      name: 'get_update_status',
+      description: 'Check the status of the last documentation update',
+      inputSchema: {
+        type: 'object' as const,
+        properties: {},
+        required: []
+      },
+    });
+  }
+
+  if (enabledTools.includes('trigger_update')) {
+    tools.push({
+      name: 'trigger_update',
+      description: 'Manually trigger a documentation update',
+      inputSchema: {
+        type: 'object' as const,
+        properties: {},
+        required: []
+      },
+    });
+  }
+
+  return { tools };
+});
+
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+
+  try {
+    switch (name) {
+      case 'search_documentation':
+        return await handleSearchDocumentation(args);
+      case 'get_document':
+        return await handleGetDocument(args);
+      case 'list_categories':
+        return await handleListCategories(args);
+      case 'get_recent_updates':
+        return await handleGetRecentUpdates(args);
+      case 'get_update_status':
+        return await handleGetUpdateStatus(args);
+      case 'trigger_update':
+        return await handleTriggerUpdate(args);
+      default:
+        throw new Error(`Unknown tool: ${name}`);
+    }
+  } catch (error) {
+    logger.error('Tool execution failed', { tool: name, error });
+    throw error;
+  }
+});
+
+// Tool handlers
+async function handleSearchDocumentation(args: any) {
+  const { query, category, platform, source, limit = 10 } = SearchToolInputZodSchema.parse(args);
+  
+  logger.info('Searching documentation', { query, category, platform, source, limit });
+  
+  const results = await database.searchDocuments(query, {
+    category,
+    platform,
+    source,
+    limit
+  });
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: `Found ${results.length} results for "${query}":\n\n${results.map((doc, index) => 
+          `${index + 1}. **${doc.title}**\n   - URL: ${doc.url}\n   - Category: ${doc.category}\n   - Platform: ${doc.platform}\n   - Source: ${doc.source}\n   - Relevance: ${doc.relevanceScore.toFixed(2)}\n   - Snippet: ${doc.snippet}\n`
+        ).join('\n')}`
+      }
+    ]
+  };
+}
+
+async function handleGetDocument(args: any) {
+  const { id } = GetDocumentToolInputZodSchema.parse(args);
+  
+  logger.info('Getting document', { id });
+  
+  const document = await database.getDocument(id);
+  if (!document) {
+    throw new Error(`Document with ID ${id} not found`);
+  }
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: `**${document.title}**\n\n**URL:** ${document.url}\n**Category:** ${document.category}\n**Platform:** ${document.platform}\n**Source:** ${document.source}\n**Last Modified:** ${document.lastModified}\n\n${document.content}`
+      }
+    ]
+  };
+}
+
+async function handleListCategories(args: any) {
+  const { platform } = ListCategoriesToolInputZodSchema.parse(args);
+  
+  logger.info('Listing categories', { platform });
+  
+  const categories = await database.getCategories(platform);
+  
+  return {
+    content: [
+      {
+        type: 'text',
+        text: `Available categories${platform ? ` for ${platform}` : ''}:\n\n${categories.map(cat => 
+          `- **${cat.name}** (${cat.documentCount} documents)`
+        ).join('\n')}`
+      }
+    ]
+  };
+}
+
+async function handleGetRecentUpdates(args: any) {
+  const { since, limit = 10 } = GetUpdatesToolInputZodSchema.parse(args);
+  
+  logger.info('Getting recent updates', { since, limit });
+  
+  const sinceDate = since ? new Date(since) : undefined;
+  const updates = await database.getRecentUpdates(sinceDate, limit);
+  
+  return {
+    content: [
+      {
+        type: 'text',
+        text: `Recent updates${since ? ` since ${since}` : ''}:\n\n${updates.map(update => 
+          `- **${update.title}** (${update.url})\n  Updated: ${update.updatedAt}\n  Category: ${update.category}\n  Platform: ${update.platform}`
+        ).join('\n\n')}`
+      }
+    ]
+  };
+}
+
+async function handleGetUpdateStatus(args: any) {
+  logger.info('Getting update status');
+  
+  const status = await database.getLastUpdateStatus();
+  
+  return {
+    content: [
+      {
+        type: 'text',
+        text: `**Update Status:**\n\n**Last Update:** ${status?.lastUpdate || 'Never'}\n**Total Documents:** ${status?.totalDocuments || 0}\n**Documents Count:** ${await database.getTotalDocumentCount()}\n**Next Scheduled Update:** ${await scheduler.getNextScheduledRun()}`
+      }
+    ]
+  };
+}
+
+async function handleTriggerUpdate(args: any) {
+  logger.info('Triggering manual update');
+  
+  const result = await sitemapUpdater.performUpdate(true);
+  
+  return {
+    content: [
+      {
+        type: 'text',
+        text: `**Manual Update Triggered:**\n\n**Last Update:** ${result.lastUpdate}\n**Total Documents:** ${result.totalDocuments}\n**New Documents:** ${result.newDocuments}\n**Updated Documents:** ${result.updatedDocuments}\n**Errors:** ${result.errors.length}`
+      }
+    ]
+  };
+}
+
+// Initialize and start server
+async function startServer() {
+  try {
+    // Initialize database
+    await database.initialize();
+    logger.info('Database initialized');
+
+    // Initialize scheduler
+    await scheduler.initialize();
+    logger.info('Scheduler initialized');
+
+    // Start MCP server
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    
+    logger.info('MoEngage Documentation MCP Server started successfully', {
+      databasePath: config.databasePath,
+      sitemapUrls: config.sitemapUrls,
+      sources: config.sitemapUrls.length,
+      updateSchedule: config.updateSchedule,
+      enabledTools
+    });
+
+  } catch (error) {
+    logger.error('Failed to start MCP server', { error });
+    process.exit(1);
+  }
+}
+
+// Handle graceful shutdown
+process.on('SIGINT', async () => {
+  logger.info('Received SIGINT, shutting down gracefully');
+  await scheduler.shutdown();
+  await database.close();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  logger.info('Received SIGTERM, shutting down gracefully');
+  await scheduler.shutdown();
+  await database.close();
+  process.exit(0);
+});
+
+startServer();

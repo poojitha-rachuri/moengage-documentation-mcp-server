@@ -15,7 +15,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
-    "start": "./start-replit.sh",
+    "start": "node dist/index.js",
     "start:prod": "node dist/index.js",
     "start:http": "node dist/http-server.js",
     "start:mcp": "./start-mcp.sh",
@@ -43,7 +43,9 @@
     "claude",
     "cursor",
     "ai",
-    "assistant"
+    "assistant",
+    "search",
+    "docs"
   ],
   "author": "MoEngage",
   "license": "MIT",
